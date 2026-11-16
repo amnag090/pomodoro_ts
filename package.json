@@ -1,0 +1,20 @@
+{
+  "name": "pomodoro",
+  "version": "1.0.0",
+  "description": "CHRONOS // TypeScript Pomodoro Focus Studio with Web Audio soundscapes, task queue, analytics heatmap, and customizable themes",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
+  }
+}
