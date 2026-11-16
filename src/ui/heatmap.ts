@@ -1,4 +1,4 @@
-import type { AnalyticsSummary } from '../.js';
+import type { AnalyticsSummary } from '../core/stats.js';
 
 export function renderHeatmapSvg(summary: AnalyticsSummary): string {
   const days = summary.heatmapDays;

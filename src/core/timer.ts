@@ -5,7 +5,7 @@ import type {
   TimerSettings,
   TimerSnapshot,
   TimerStatus,
-} from '../.js';
+} from '../types.js';
 
 export const PRESETS: readonly PresetConfig[] = [
   {

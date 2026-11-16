@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { DEFAULT_SETTINGS } from '../.js';
-import { PomodoroEngine, formatCountdown, formatOvertime } from '../.js';
-import type { PhaseCompletionEvent } from '../.js';
+import { DEFAULT_SETTINGS } from '../storage.js';
+import { PomodoroEngine, formatCountdown, formatOvertime } from '../timer.js';
+import type { PhaseCompletionEvent } from '../../types.js';
 
 function createTestClock(initial = 1_000_000) {
   let now = initial;

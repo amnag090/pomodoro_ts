@@ -1,4 +1,4 @@
-import type { TaskItem } from '../.js';
+import type { TaskItem } from '../types.js';
 
 export function createTask(
   title: string,

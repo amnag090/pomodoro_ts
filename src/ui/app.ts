@@ -1,11 +1,11 @@
-import { SoundEngine } from '../.js';
-import { computeAnalytics, toLocalDateKey } from '../.js';
+import { SoundEngine } from '../audio/soundEngine.js';
+import { computeAnalytics, toLocalDateKey } from '../core/stats.js';
 import {
   DEFAULT_SETTINGS,
   loadAppData,
   sanitizeAppData,
   saveAppData,
-} from '../.js';
+} from '../core/storage.js';
 import {
   addTask,
   clearCompletedTasks,
@@ -13,14 +13,14 @@ import {
   incrementTaskPomodoro,
   moveTask,
   toggleTaskDone,
-} from '../.js';
+} from '../core/tasks.js';
 import {
   PRESETS,
   PomodoroEngine,
   formatCountdown,
   formatOvertime,
   getPhaseLabel,
-} from '../.js';
+} from '../core/timer.js';
 import type {
   AppData,
   BinauralBand,
@@ -30,12 +30,12 @@ import type {
   SoundLayerId,
   ThemeId,
   TimerSnapshot,
-} from '../.js';
-import { updateDocumentTitleAndFavicon } from './.js';
-import { renderHeatmapSvg, renderHourlyChartSvg } from './.js';
-import { NotificationService } from './.js';
-import { ParticleBackdrop } from './.js';
-import { THEMES, applyTheme, getPhaseAccent } from './.js';
+} from '../types.js';
+import { updateDocumentTitleAndFavicon } from './favicon.js';
+import { renderHeatmapSvg, renderHourlyChartSvg } from './heatmap.js';
+import { NotificationService } from './notifications.js';
+import { ParticleBackdrop } from './particles.js';
+import { THEMES, applyTheme, getPhaseAccent } from './themes.js';
 
 interface SoundLayerMeta {
   id: SoundLayerId;

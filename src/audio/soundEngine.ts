@@ -1,4 +1,4 @@
-import type { AudioMixerState, BinauralBand, SoundLayerId } from '../.js';
+import type { AudioMixerState, BinauralBand, SoundLayerId } from '../types.js';
 
 interface LayerNode {
   gain: GainNode;

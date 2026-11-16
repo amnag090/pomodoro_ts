@@ -1,4 +1,4 @@
-import type { SessionRecord } from '../.js';
+import type { SessionRecord } from '../types.js';
 
 export interface HeatmapDay {
   dateKey: string;

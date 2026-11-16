@@ -1,5 +1,5 @@
-import { THEMES } from './.js';
-import type { ThemeId } from '../.js';
+import { THEMES } from './themes.js';
+import type { ThemeId } from '../types.js';
 
 interface AmbientParticle {
   x: number;

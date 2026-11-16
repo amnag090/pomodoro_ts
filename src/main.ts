@@ -1,5 +1,5 @@
 import './styles/main.css';
-import { PomodoroApp } from './.js';
+import { PomodoroApp } from './ui/app.js';
 
 const root = document.getElementById('app');
 if (!root) {

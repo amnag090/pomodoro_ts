@@ -1,4 +1,4 @@
-import type { Phase, ThemeId } from '../.js';
+import type { Phase, ThemeId } from '../types.js';
 
 export interface ThemeDefinition {
   id: ThemeId;

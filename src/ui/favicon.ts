@@ -1,6 +1,6 @@
-import { formatCountdown, formatOvertime, getPhaseLabel } from '../.js';
-import { getPhaseAccent } from './.js';
-import type { ThemeId, TimerSnapshot } from '../.js';
+import { formatCountdown, formatOvertime, getPhaseLabel } from '../core/timer.js';
+import { getPhaseAccent } from './themes.js';
+import type { ThemeId, TimerSnapshot } from '../types.js';
 
 let lastRenderedFaviconBucket = '';
 

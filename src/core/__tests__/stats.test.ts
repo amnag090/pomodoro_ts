@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { computeAnalytics, toLocalDateKey } from '../.js';
+import { computeAnalytics, toLocalDateKey } from '../stats.js';
 import {
   addTask,
   clearCompletedTasks,
   incrementTaskPomodoro,
   moveTask,
   toggleTaskDone,
-} from '../.js';
-import type { SessionRecord } from '../.js';
+} from '../tasks.js';
+import type { SessionRecord } from '../../types.js';
 
 function makeFocusRecord(date: Date, minutes = 25): SessionRecord {
   return {

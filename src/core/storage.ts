@@ -9,7 +9,7 @@ import type {
   TaskItem,
   ThemeId,
   TimerSettings,
-} from '../.js';
+} from '../types.js';
 
 const STORAGE_KEY = 'chronos.pomodoro.v1';
 
