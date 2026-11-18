@@ -1680,7 +1680,7 @@ export class PomodoroApp {
       ['Z', 'Toggle Zen full-screen focus mode'],
       ['P', 'Toggle Mini Floating / Picture-in-Picture timer'],
       ['?', 'Open or close this shortcuts guide'],
-      ['Esc', 'Close modal or exit Zen mode'],
+      ['Esc', 'Close the menu or a dialog, or exit Zen mode'],
     ];
 
     this.modalHostEl.innerHTML = `
