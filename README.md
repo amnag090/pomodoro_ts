@@ -4,6 +4,8 @@ A distraction-free Pomodoro timer for the browser. It opens to nothing but the t
 
 Built with TypeScript and Vite, with no framework and no runtime dependencies. All sound is synthesized in the browser, and all data stays on your device.
 
+**Try it live: <https://amnag090.github.io/pomodoro_ts/>**
+
 ![The default view: just the timer, on the AMOLED Black theme](docs/screenshots/desktop-zen.png)
 
 ## Features
@@ -58,7 +60,16 @@ Then open <http://localhost:5173>.
 | `npm run test:watch` | Run the tests in watch mode |
 | `npm run typecheck` | Type-check without emitting files |
 
-The production build is a static site. Host the `dist/` folder on any static web server.
+## Deployment
+
+The app is a static site, deployed to GitHub Pages by [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml). Every push to `main` runs the tests, builds the site and publishes it. A failing test stops the deploy, so the live site keeps the last good version.
+
+To set it up on your own fork:
+
+1. In the repo, go to **Settings → Pages**, and under **Build and deployment** set **Source** to **GitHub Actions**.
+2. Push to `main`, or run the workflow manually from the **Actions** tab.
+
+The site is published at `https://<your-username>.github.io/<repo-name>/`. Asset paths are relative (`base: './'` in [`vite.config.ts`](vite.config.ts)), so the build works from that subfolder, or from any other static host: just upload the `dist/` folder.
 
 ## Keyboard shortcuts
 
