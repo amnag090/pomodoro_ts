@@ -4,7 +4,9 @@ A distraction-free Pomodoro timer for the browser. It opens to nothing but the t
 
 Built with TypeScript and Vite, with no framework and no runtime dependencies. All sound is synthesized in the browser, and all data stays on your device.
 
-**Try it live: <https://amnag090.github.io/pomodoro_ts/>**
+[![Deploy to GitHub Pages](https://github.com/amnag090/pomodoro_ts/actions/workflows/deploy.yml/badge.svg)](https://github.com/amnag090/pomodoro_ts/actions/workflows/deploy.yml)
+
+**▶ Open the app: <https://amnag090.github.io/pomodoro_ts/>**. Install it on your phone or desktop, and it works offline.
 
 ![The default view: just the timer, on the AMOLED Black theme](docs/screenshots/desktop-zen.png)
 
@@ -23,6 +25,7 @@ Built with TypeScript and Vite, with no framework and no runtime dependencies. A
 - **Stats.** A 12-week focus heatmap, current and best streaks, all-time totals and your peak focus hours.
 - **Themes.** AMOLED Black (the default: true black that keeps OLED pixels off), Cyber Neon, Midnight Lo-Fi, Matcha Zen and Solar Sunset. An optional **Flat design** mode removes shadows, glows, blur and particles on any theme.
 - **Mini timer.** A floating picture-in-picture timer that stays on top of other windows.
+- **Installable, works offline.** Install it on your phone or desktop like a native app (it's a PWA). After the first visit it loads and runs with no connection.
 - **Phone friendly.** The layout fits phone screens down to 320px wide.
 - **Local-first.** No account and no server. Data is saved in the browser, with JSON export and import from the Stats window.
 
@@ -99,6 +102,8 @@ src/
 │   └── __tests__/        Vitest tests
 ├── audio/
 │   └── soundEngine.ts    Web Audio synthesis: soundscapes, chimes, tick
+├── pwa/
+│   └── service-worker.js Offline caching (template; built into dist/sw.js)
 ├── ui/
 │   ├── app.ts            Renders the page and wires up all interactions
 │   ├── themes.ts         Theme definitions
@@ -114,10 +119,12 @@ src/
 
 - **Accurate timing.** The engine measures real elapsed time on each update instead of counting interval ticks, so the timer stays correct even when the browser slows timers in a background tab. It takes an injectable clock, which makes it straightforward to test.
 - **No audio files.** Soundscapes, chimes and the tick are all generated live with the Web Audio API.
+- **Offline support.** A service worker ([`src/pwa/service-worker.js`](src/pwa/service-worker.js)) caches the app on first visit. A small plugin in [`vite.config.ts`](vite.config.ts) fills in the exact list of built files and a version hash at build time, so each deploy is picked up automatically. Pages load network-first, so updates appear on the next visit, and fall back to the cached copy when offline. The service worker only runs in production builds, not with `npm run dev`.
 - **Your data.** Everything is stored in `localStorage` under the key `chronos.pomodoro.v1`. Saved data is validated on load, so a corrupted or outdated entry falls back to safe defaults instead of breaking the app. Use **Stats → Export JSON Backup** to keep a copy or move it to another browser.
 
 ## Browser notes
 
+- **Installing:** in Chrome or Edge, use **Install app** in the ☰ Menu (or the install icon in the address bar). On iPhone or iPad, open it in Safari, tap **Share**, then **Add to Home Screen**. On Android, choose **Install app** from the browser menu.
 - **Sound** starts after your first click or key press, because browsers block audio until you interact with the page.
 - **Mini timer:** Chrome and Edge open a real always-on-top window (Document Picture-in-Picture). Other browsers show a floating mini timer inside the page instead.
 - **Desktop notifications** are off by default. Turn them on in Settings, and allow them when the browser asks.

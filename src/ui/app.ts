@@ -70,6 +70,11 @@ const FEATURES: readonly FeatureMeta[] = [
 
 const SILENT_LAYERS: Record<SoundLayerId, number> = { rain: 0, vinyl: 0, space: 0, brown: 0, binaural: 0 };
 
+/** Chromium's install-prompt event (not yet in TypeScript's DOM types). */
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+}
+
 const RING_RADIUS = 132;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
@@ -513,6 +518,7 @@ export class PomodoroApp {
             <button type="button" class="icon-btn" id="btn-pip" title="Mini floating timer (P)">⧉ Mini timer</button>
             <button type="button" class="icon-btn" id="btn-mute" title="Mute / unmute all audio (M)">🔊 Mute</button>
             <button type="button" class="icon-btn" id="btn-shortcuts" title="Keyboard shortcuts (?)">⌨ Shortcuts</button>
+            <button type="button" class="icon-btn drawer-tools__wide" id="btn-install" title="Install CHRONOS as an app" hidden>⬇ Install app</button>
           </div>
         </section>
       </aside>
@@ -606,6 +612,28 @@ export class PomodoroApp {
           this.syncAudioUi();
         }
       });
+    });
+
+    // Install as an app (PWA). Chrome/Edge fire beforeinstallprompt when the app is installable;
+    // other browsers (e.g. Safari) use their own "Add to Home Screen" and never show this button.
+    const installBtn = this.q<HTMLButtonElement>('#btn-install');
+    let installPrompt: BeforeInstallPromptEvent | null = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      installPrompt = e as BeforeInstallPromptEvent;
+      installBtn.hidden = false;
+    });
+    installBtn.addEventListener('click', () => {
+      if (!installPrompt) return;
+      this.setDrawerOpen(false);
+      void installPrompt.prompt();
+      installPrompt = null;
+      installBtn.hidden = true;
+    });
+    window.addEventListener('appinstalled', () => {
+      installPrompt = null;
+      installBtn.hidden = true;
+      this.notifications.toast('CHRONOS installed', 'Open it from your home screen or app list.', 'success');
     });
 
     // Flat design switch
