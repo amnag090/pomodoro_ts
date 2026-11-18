@@ -1,4 +1,5 @@
 :root {
+  color-scheme: dark;
   --bg-base: #070b14;
   --bg-elevated: rgba(15, 23, 42, 0.72);
   --bg-elevated-strong: rgba(15, 23, 42, 0.92);
@@ -72,6 +73,30 @@
   --heat-4: #fb7185;
 }
 
+/* AMOLED Black: true #000 surfaces keep OLED pixels switched off. Cards are
+   defined by hairline borders rather than tinted fills; effects are removed
+   further down (see "AMOLED Black overrides"). */
+[data-theme='amoled'] {
+  --bg-base: #000000;
+  --bg-elevated: #000000;
+  --bg-elevated-strong: #0a0a0a;
+  --border-subtle: #262626;
+  --border-strong: #404040;
+  --text-primary: #ededed;
+  --text-secondary: #a3a3a3;
+  --text-muted: #7a7a7a;
+  --focus-color: #22d3ee;
+  --break-color: #4ade80;
+  --long-break-color: #c084fc;
+  --aurora-1: transparent;
+  --aurora-2: transparent;
+  --heat-1: rgba(34, 211, 238, 0.28);
+  --heat-2: rgba(34, 211, 238, 0.5);
+  --heat-3: rgba(34, 211, 238, 0.75);
+  --heat-4: #22d3ee;
+  --shadow-card: none;
+}
+
 [data-phase='shortBreak'] {
   --active-accent: var(--break-color);
 }
@@ -86,6 +111,11 @@
 
 * {
   box-sizing: border-box;
+}
+
+/* Components set their own display (flex/grid), which would override the UA's [hidden] rule. */
+[hidden] {
+  display: none !important;
 }
 
 html,
@@ -106,6 +136,8 @@ input {
 
 button {
   cursor: pointer;
+  /* Drop the grey tap flash on mobile; buttons have their own :active/hover states. */
+  -webkit-tap-highlight-color: transparent;
 }
 
 .particle-canvas {
@@ -482,11 +514,18 @@ button {
   color: var(--text-secondary);
 }
 
+.active-task-label {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .active-task-title {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 280px;
+  /* Let the title truncate instead of forcing the banner wider than a phone. */
+  min-width: 0;
 }
 
 .active-task-count {
@@ -651,6 +690,7 @@ button {
   font-size: 0.8rem;
   font-weight: 600;
   padding: 4px 6px;
+  white-space: nowrap;
 }
 
 .text-btn:hover {
@@ -1014,20 +1054,37 @@ body.is-zen .workspace {
   justify-content: center;
 }
 
-body.is-zen .hero-card {
+/* Minimal layout (the default): no side panels switched on, so the timer sits
+   alone and centered with the zen look, keeping only the slim header + Menu. */
+.app-shell.is-minimal {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.app-shell.is-minimal .workspace {
+  flex: 1;
+  grid-template-columns: minmax(0, 620px);
+  justify-content: center;
+  align-content: center;
+}
+
+body.is-zen .hero-card,
+.app-shell.is-minimal .hero-card {
   background: transparent;
   border-color: transparent;
   box-shadow: none;
   backdrop-filter: none;
 }
 
-body.is-zen .ring-container {
-  width: 360px;
-  height: 360px;
+body.is-zen .ring-container,
+.app-shell.is-minimal .ring-container {
+  width: min(360px, calc(100vw - 72px));
+  height: min(360px, calc(100vw - 72px));
 }
 
-body.is-zen .countdown {
-  font-size: 5rem;
+body.is-zen .countdown,
+.app-shell.is-minimal .countdown {
+  font-size: clamp(3.4rem, 17vw, 5rem);
 }
 
 .zen-exit-btn {
@@ -1370,15 +1427,287 @@ kbd {
   color: var(--text-secondary);
 }
 
+/* AMOLED Black overrides: remove effects that light up black pixels for no
+   visible gain, or that repaint every frame (blur behind the particle canvas,
+   the pulsing SVG halo) and drain phone batteries. */
+[data-theme='amoled'] .ambient-aurora,
+[data-theme='amoled'] .ring-glow {
+  display: none;
+}
+
+[data-theme='amoled'] .theme-picker,
+[data-theme='amoled'] .icon-btn,
+[data-theme='amoled'] .hero-card,
+[data-theme='amoled'] .panel-card,
+[data-theme='amoled'] .mini-floating {
+  backdrop-filter: none;
+}
+
+[data-theme='amoled'] .modal-backdrop {
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: none;
+}
+
+[data-theme='amoled'] .countdown {
+  text-shadow: none;
+}
+
+[data-theme='amoled'] .brand__dot,
+[data-theme='amoled'] .phase-tab.is-active,
+[data-theme='amoled'] .ctrl-btn--primary,
+[data-theme='amoled'] .cycle-dot.is-done {
+  box-shadow: none;
+}
+
+/* A black swatch would vanish on the black picker, so outline it (with a border,
+   not a shadow, so the outline survives flat design). */
+.theme-swatch[data-theme-pick='amoled']:not(.is-active) {
+  border-color: #737373;
+}
+
+/* Header menu button + side drawer */
+.menu-btn[aria-expanded='true'] {
+  border-color: var(--active-accent);
+  color: var(--text-primary);
+}
+
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 36;
+  background: rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0s linear 0.2s;
+}
+
+.drawer-backdrop.is-open {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.2s ease;
+}
+
+.side-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 37;
+  width: min(340px, 88vw);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 18px 20px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  background: var(--bg-elevated-strong);
+  border-left: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-card);
+  transform: translateX(100%);
+  visibility: hidden;
+  transition: transform 0.25s ease, visibility 0s linear 0.25s;
+}
+
+.side-drawer.is-open {
+  transform: none;
+  visibility: visible;
+  transition: transform 0.25s ease;
+}
+
+.side-drawer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.side-drawer__header h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.drawer-close {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.drawer-close:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+.drawer-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.drawer-section__title {
+  margin: 0 0 4px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.drawer-section__hint {
+  margin: 0 0 6px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.drawer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.drawer-tools {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.drawer-tools .icon-btn {
+  justify-content: center;
+  padding: 10px 12px;
+}
+
+/* On/off switch (a checkbox with role="switch") */
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 11px 0;
+  border-top: 1px solid var(--border-subtle);
+  cursor: pointer;
+}
+
+.switch-row__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.switch-row__name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.switch-row__desc {
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+}
+
+.switch {
+  appearance: none;
+  -webkit-appearance: none;
+  flex-shrink: 0;
+  position: relative;
+  width: 40px;
+  height: 22px;
+  margin: 0;
+  border-radius: 999px;
+  background: var(--border-strong);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.switch::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--text-primary);
+  transition: transform 0.2s ease;
+}
+
+.switch:checked {
+  background: var(--focus-color);
+}
+
+.switch:checked::before {
+  transform: translateX(18px);
+  background: #ffffff;
+}
+
+.switch:focus-visible {
+  outline: 2px solid var(--focus-color);
+  outline-offset: 2px;
+}
+
+/* Flat design (optional, works with every theme): solid surfaces only. Removes
+   shadows, glows, blur, gradients and the particle/aurora backdrop. */
+[data-flat] {
+  --shadow-card: none;
+}
+
+[data-flat] *,
+[data-flat] *::before,
+[data-flat] *::after {
+  box-shadow: none !important;
+  text-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+[data-flat] .ambient-aurora,
+[data-flat] .particle-canvas,
+[data-flat] .ring-glow {
+  display: none;
+}
+
+[data-flat] .daily-goal__fill {
+  background: var(--active-accent);
+}
+
 @media (max-width: 960px) {
   .workspace {
-    grid-template-columns: 1fr;
+    /* minmax(0, …) lets the single column shrink to the screen; a bare 1fr
+       grows to fit its widest content and pushed the page past phone width. */
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
 @media (max-width: 560px) {
   .app-shell {
     padding: 14px;
+  }
+  /* Keep the brand and Menu on one row. */
+  .topbar {
+    flex-wrap: nowrap;
+  }
+  .brand__tag {
+    display: none;
+  }
+  .hero-card {
+    padding: 20px 16px 22px;
+  }
+  .panel-card {
+    padding: 16px;
+  }
+  /* Keep Reset / Start / Skip on one row on typical (390px+) phones. */
+  .controls-bar {
+    gap: 8px;
+  }
+  .ctrl-btn {
+    padding: 11px 15px;
+  }
+  .ctrl-btn--primary {
+    padding: 13px 22px;
   }
   .ring-container {
     width: 264px;

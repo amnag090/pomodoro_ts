@@ -26,7 +26,7 @@ export class ParticleBackdrop {
   private ambient: AmbientParticle[] = [];
   private bursts: BurstParticle[] = [];
   private rafId: number | null = null;
-  private themeId: ThemeId = 'cyber';
+  private themeId: ThemeId = 'amoled';
   private activeRunning = false;
   private reducedMotion = false;
 
@@ -62,7 +62,9 @@ export class ParticleBackdrop {
   }
 
   celebrate(originX?: number, originY?: number): void {
-    if (this.reducedMotion) return;
+    // Skip when the animation loop is stopped (reduced motion or flat design);
+    // otherwise bursts would pile up and all fire when it restarts.
+    if (this.reducedMotion || this.rafId === null) return;
     const cx = originX ?? window.innerWidth / 2;
     const cy = originY ?? window.innerHeight * 0.36;
     const theme = THEMES[this.themeId];
@@ -97,6 +99,8 @@ export class ParticleBackdrop {
       cancelAnimationFrame(this.rafId);
       this.rafId = null;
     }
+    this.bursts = [];
+    this.ctx?.clearRect(0, 0, window.innerWidth, window.innerHeight);
   }
 
   private seedAmbient(): void {

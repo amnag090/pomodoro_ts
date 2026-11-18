@@ -107,35 +107,61 @@ export class SoundEngine {
     }
   }
 
-  playTick(): void {
+  /**
+   * Mechanical clock tick. Two layers so it is audible on laptop and phone speakers:
+   * a band-passed noise snap (the "click") plus a short pitched knock (the "body").
+   * `tock` alternates the pitch each second for a natural tick-tock.
+   */
+  playTick(tock = false): void {
     if (this.state.muted || this.chimeVolume <= 0.01) return;
     const ctx = this.ensureContext();
     if (!ctx) return;
 
     const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    const filter = ctx.createBiquadFilter();
+    const vol = this.chimeVolume;
 
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(1600, now);
-    osc.frequency.exponentialRampToValueAtTime(520, now + 0.018);
+    const snap = ctx.createBufferSource();
+    snap.buffer = this.getTickNoise(ctx);
+    const snapFilter = ctx.createBiquadFilter();
+    snapFilter.type = 'bandpass';
+    snapFilter.frequency.value = tock ? 2300 : 3100;
+    snapFilter.Q.value = 1.3;
+    const snapGain = ctx.createGain();
+    snapGain.gain.setValueAtTime(0.0001, now);
+    snapGain.gain.exponentialRampToValueAtTime(0.28 * vol, now + 0.001);
+    snapGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.035);
+    snap.connect(snapFilter);
+    snapFilter.connect(snapGain);
+    snapGain.connect(ctx.destination);
 
-    filter.type = 'bandpass';
-    filter.frequency.value = 1400;
-    filter.Q.value = 2.5;
+    const knock = ctx.createOscillator();
+    knock.type = 'sine';
+    knock.frequency.setValueAtTime(tock ? 1050 : 1400, now);
+    knock.frequency.exponentialRampToValueAtTime(tock ? 650 : 850, now + 0.04);
+    const knockGain = ctx.createGain();
+    knockGain.gain.setValueAtTime(0.0001, now);
+    knockGain.gain.exponentialRampToValueAtTime(0.08 * vol, now + 0.002);
+    knockGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.055);
+    knock.connect(knockGain);
+    knockGain.connect(ctx.destination);
 
-    const peak = 0.05 * this.chimeVolume;
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.linearRampToValueAtTime(peak, now + 0.002);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.025);
+    snap.start(now);
+    snap.stop(now + 0.04);
+    knock.start(now);
+    knock.stop(now + 0.06);
+  }
 
-    osc.connect(filter);
-    filter.connect(gain);
-    gain.connect(ctx.destination);
+  private tickNoise: AudioBuffer | null = null;
 
-    osc.start(now);
-    osc.stop(now + 0.03);
+  private getTickNoise(ctx: AudioContext): AudioBuffer {
+    if (!this.tickNoise || this.tickNoise.sampleRate !== ctx.sampleRate) {
+      const length = Math.ceil(ctx.sampleRate * 0.04);
+      const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
+      this.tickNoise = buffer;
+    }
+    return this.tickNoise;
   }
 
   playUiClick(): void {

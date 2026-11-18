@@ -1,5 +1,5 @@
 import { formatCountdown, formatOvertime, getPhaseLabel } from '../core/timer.js';
-import { getPhaseAccent } from './themes.js';
+import { THEMES, getPhaseAccent } from './themes.js';
 import type { ThemeId, TimerSnapshot } from '../types.js';
 
 let lastRenderedFaviconBucket = '';
@@ -36,7 +36,7 @@ export function updateDocumentTitleAndFavicon(
 
   const svg = [
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">`,
-    `<circle cx="32" cy="32" r="30" fill="#090d16"/>`,
+    `<circle cx="32" cy="32" r="30" fill="${THEMES[themeId].bgMeta}"/>`,
     `<circle cx="32" cy="32" r="${r}" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="6"/>`,
     `<circle cx="32" cy="32" r="${r}" fill="none" stroke="${accent}" stroke-width="6" stroke-linecap="round" stroke-dasharray="${circ.toFixed(1)}" stroke-dashoffset="${dashOffset.toFixed(1)}" transform="rotate(-90 32 32)"/>`,
     snapshot.status === 'running' || snapshot.status === 'overtime'

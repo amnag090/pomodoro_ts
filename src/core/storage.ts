@@ -2,6 +2,7 @@ import type {
   AppData,
   AudioMixerState,
   BinauralBand,
+  FeatureId,
   Phase,
   PresetId,
   SessionRecord,
@@ -9,6 +10,7 @@ import type {
   TaskItem,
   ThemeId,
   TimerSettings,
+  UiPreferences,
 } from '../types.js';
 
 const STORAGE_KEY = 'chronos.pomodoro.v1';
@@ -41,14 +43,29 @@ export const DEFAULT_AUDIO: AudioMixerState = {
   binauralBand: 'alpha',
 };
 
+/** Zen by default: every optional panel starts off and is switched on from the side drawer. */
+export const DEFAULT_UI: UiPreferences = {
+  features: {
+    tasks: false,
+    soundscape: false,
+    timeline: false,
+    dailyGoal: false,
+  },
+  flatDesign: false,
+};
+
 export function createDefaultAppData(): AppData {
   return {
     version: 1,
-    theme: 'cyber',
+    theme: 'amoled',
     settings: { ...DEFAULT_SETTINGS },
     audio: {
       ...DEFAULT_AUDIO,
       layers: { ...DEFAULT_AUDIO.layers },
+    },
+    ui: {
+      ...DEFAULT_UI,
+      features: { ...DEFAULT_UI.features },
     },
     tasks: [
       {
@@ -73,11 +90,12 @@ export function createDefaultAppData(): AppData {
   };
 }
 
-const VALID_THEMES: readonly ThemeId[] = ['cyber', 'midnight', 'matcha', 'sunset'];
+const VALID_THEMES: readonly ThemeId[] = ['amoled', 'cyber', 'midnight', 'matcha', 'sunset'];
 const VALID_PRESETS: readonly PresetId[] = ['classic', 'deepWork', 'sprint', 'custom'];
 const VALID_BANDS: readonly BinauralBand[] = ['alpha', 'beta', 'gamma'];
 const VALID_PHASES: readonly Phase[] = ['focus', 'shortBreak', 'longBreak'];
 const VALID_LAYERS: readonly SoundLayerId[] = ['rain', 'vinyl', 'space', 'brown', 'binaural'];
+const VALID_FEATURES: readonly FeatureId[] = ['tasks', 'soundscape', 'timeline', 'dailyGoal'];
 
 function clampNumber(val: unknown, fallback: number, min: number, max: number): number {
   if (typeof val !== 'number' || !Number.isFinite(val)) return fallback;
@@ -140,6 +158,21 @@ export function sanitizeAppData(raw: unknown): AppData {
       : defaults.audio.binauralBand,
   };
 
+  const rawUi = (obj['ui'] && typeof obj['ui'] === 'object' ? obj['ui'] : {}) as Record<string, unknown>;
+  const rawFeatures = (rawUi['features'] && typeof rawUi['features'] === 'object'
+    ? rawUi['features']
+    : {}) as Record<string, unknown>;
+
+  const features = { ...defaults.ui.features };
+  for (const key of VALID_FEATURES) {
+    features[key] = asBool(rawFeatures[key], defaults.ui.features[key]);
+  }
+
+  const ui: UiPreferences = {
+    features,
+    flatDesign: asBool(rawUi['flatDesign'], defaults.ui.flatDesign),
+  };
+
   const tasks: TaskItem[] = Array.isArray(obj['tasks'])
     ? obj['tasks']
         .filter((item): item is Record<string, unknown> => Boolean(item && typeof item === 'object'))
@@ -178,6 +211,7 @@ export function sanitizeAppData(raw: unknown): AppData {
     theme,
     settings,
     audio,
+    ui,
     tasks,
     activeTaskId,
     history,

@@ -23,7 +23,9 @@ import {
 } from '../core/timer.js';
 import type {
   AppData,
+  AudioMixerState,
   BinauralBand,
+  FeatureId,
   Phase,
   PresetId,
   SessionRecord,
@@ -52,6 +54,22 @@ const SOUND_LAYERS: readonly SoundLayerMeta[] = [
   { id: 'binaural', name: 'Binaural Focus', subtitle: 'Stereo brainwave entrainment', icon: '🧠' },
 ];
 
+interface FeatureMeta {
+  id: FeatureId;
+  name: string;
+  description: string;
+}
+
+/** Optional panels, switched on from the side drawer. Everything starts off (zen by default). */
+const FEATURES: readonly FeatureMeta[] = [
+  { id: 'tasks', name: 'Task queue', description: 'Plan tasks and log focus sessions against them' },
+  { id: 'soundscape', name: 'Soundscape', description: 'Rain, vinyl, space, brown noise and binaural layers' },
+  { id: 'timeline', name: 'Today’s timeline', description: 'The focus blocks you’ve completed today' },
+  { id: 'dailyGoal', name: 'Daily goal', description: 'Progress toward your daily Pomodoro target' },
+];
+
+const SILENT_LAYERS: Record<SoundLayerId, number> = { rain: 0, vinyl: 0, space: 0, brown: 0, binaural: 0 };
+
 const RING_RADIUS = 132;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
@@ -73,6 +91,7 @@ export class PomodoroApp {
   private particles!: ParticleBackdrop;
   private tickIntervalId: number | null = null;
   private zenMode = false;
+  private drawerOpen = false;
   private activeModal: 'analytics' | 'settings' | 'shortcuts' | null = null;
   private pipWindow: Window | null = null;
   private miniFloatingVisible = false;
@@ -98,16 +117,21 @@ export class PomodoroApp {
   private miniWidgetTimeEl!: HTMLElement;
   private miniWidgetPhaseEl!: HTMLElement;
   private miniWidgetBtnEl!: HTMLButtonElement;
+  private appShellEl!: HTMLElement;
+  private sidePanelsEl!: HTMLElement;
+  private menuBtnEl!: HTMLButtonElement;
+  private drawerEl!: HTMLElement;
+  private drawerBackdropEl!: HTMLElement;
 
   constructor(root: HTMLElement) {
     this.root = root;
     this.data = loadAppData();
-    this.sound = new SoundEngine(this.data.audio, this.data.settings.chimeVolume);
+    this.sound = new SoundEngine(this.engineAudio(), this.data.settings.chimeVolume);
     this.engine = new PomodoroEngine(this.data.settings, {
       onTick: (snap) => this.handleTick(snap),
-      onSecondBoundary: () => {
+      onSecondBoundary: (remainingSeconds) => {
         if (this.data.settings.tickSound && this.engine.getSnapshot().phase === 'focus') {
-          this.sound.playTick();
+          this.sound.playTick(remainingSeconds % 2 === 0);
         }
       },
       onOvertimeStart: (snap) => {
@@ -136,7 +160,8 @@ export class PomodoroApp {
     this.renderShell();
     this.bindEvents();
     this.particles.setTheme(this.data.theme);
-    this.particles.start();
+    this.applyFeatureLayout();
+    this.applyFlatDesign();
 
     const snap = this.engine.getSnapshot();
     this.handleTick(snap);
@@ -228,6 +253,27 @@ export class PomodoroApp {
       `;
     }).join('');
 
+    const switchRow = (name: string, description: string, attrs: string, checked: boolean) => `
+      <label class="switch-row">
+        <span class="switch-row__text">
+          <span class="switch-row__name">${name}</span>
+          <span class="switch-row__desc">${description}</span>
+        </span>
+        <input type="checkbox" class="switch" role="switch" ${attrs} ${checked ? 'checked' : ''} />
+      </label>
+    `;
+
+    const featureSwitches = FEATURES.map((f) =>
+      switchRow(f.name, f.description, `data-feature-toggle="${f.id}"`, this.data.ui.features[f.id]),
+    ).join('');
+
+    const flatSwitch = switchRow(
+      'Flat design',
+      'Solid surfaces: no shadows, glows, blur or particles',
+      'id="toggle-flat"',
+      this.data.ui.flatDesign,
+    );
+
     this.root.innerHTML = `
       <canvas class="particle-canvas" id="particle-canvas" aria-hidden="true"></canvas>
       <div class="ambient-aurora" aria-hidden="true"></div>
@@ -241,26 +287,16 @@ export class PomodoroApp {
           </div>
 
           <div class="topbar__actions">
-            <div class="theme-picker" role="group" aria-label="Color theme">
-              ${themeButtons}
-            </div>
-            <button type="button" class="icon-btn" id="btn-mute" title="Mute / Unmute audio (M)">
-              <span id="mute-icon">🔊</span>
-            </button>
-            <button type="button" class="icon-btn" id="btn-pip" title="Mini Floating Timer (P)">
-              <span>⧉</span>
-            </button>
-            <button type="button" class="icon-btn" id="btn-zen" title="Zen Focus Mode (Z)">
-              <span>✦ Zen</span>
-            </button>
-            <button type="button" class="icon-btn" id="btn-analytics" title="Analytics & 12-Week Heatmap">
-              <span>📊 Stats</span>
-            </button>
-            <button type="button" class="icon-btn" id="btn-settings" title="Timer Settings">
-              <span>⚙ Settings</span>
-            </button>
-            <button type="button" class="icon-btn" id="btn-shortcuts" title="Keyboard Shortcuts (?)">
-              <span>?</span>
+            <button
+              type="button"
+              class="icon-btn menu-btn"
+              id="btn-menu"
+              aria-controls="side-drawer"
+              aria-expanded="false"
+              title="Features, theme & settings"
+            >
+              <span aria-hidden="true">☰</span>
+              <span>Menu</span>
             </button>
           </div>
         </header>
@@ -319,7 +355,7 @@ export class PomodoroApp {
               </div>
             </div>
 
-            <div class="active-task-banner" id="active-task-banner"></div>
+            <div class="active-task-banner" id="active-task-banner" data-feature="tasks"></div>
 
             <div class="controls-bar">
               <button type="button" class="ctrl-btn ctrl-btn--ghost" id="btn-reset" title="Reset (R)">
@@ -339,16 +375,16 @@ export class PomodoroApp {
               <button type="button" class="mini-pill ${this.data.settings.flowOvertime ? 'is-on' : ''}" id="btn-toggle-flow" title="Keep counting in flow state after timer ends">
                 ⚡ Flow Overtime: ${this.data.settings.flowOvertime ? 'ON' : 'OFF'}
               </button>
-              <button type="button" class="mini-pill ${this.data.settings.tickSound ? 'is-on' : ''}" id="btn-toggle-tick" title="Subtle mechanical watch tick">
+              <button type="button" class="mini-pill ${this.data.settings.tickSound ? 'is-on' : ''}" id="btn-toggle-tick" title="Clock tick each second during focus sessions">
                 🕰 Tick: ${this.data.settings.tickSound ? 'ON' : 'OFF'}
               </button>
             </div>
 
-            <div class="daily-goal" id="daily-goal"></div>
+            <div class="daily-goal" id="daily-goal" data-feature="dailyGoal"></div>
           </section>
 
-          <aside class="side-panels">
-            <section class="panel-card">
+          <aside class="side-panels" id="side-panels">
+            <section class="panel-card" data-feature="tasks">
               <div class="panel-card__header">
                 <div>
                   <h2>Focus Queue</h2>
@@ -382,7 +418,7 @@ export class PomodoroApp {
               <ul class="task-list" id="task-list"></ul>
             </section>
 
-            <section class="panel-card">
+            <section class="panel-card" data-feature="soundscape">
               <div class="panel-card__header">
                 <div>
                   <h2>Soundscape Studio</h2>
@@ -423,7 +459,7 @@ export class PomodoroApp {
               </div>
             </section>
 
-            <section class="panel-card">
+            <section class="panel-card" data-feature="timeline">
               <div class="panel-card__header">
                 <div>
                   <h2>Today’s Timeline</h2>
@@ -436,6 +472,50 @@ export class PomodoroApp {
           </aside>
         </main>
       </div>
+
+      <div class="drawer-backdrop" id="drawer-backdrop"></div>
+      <aside
+        class="side-drawer"
+        id="side-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="drawer-title"
+        inert
+      >
+        <div class="side-drawer__header">
+          <h2 id="drawer-title">Customize</h2>
+          <button type="button" class="drawer-close" id="btn-drawer-close" aria-label="Close menu">✕</button>
+        </div>
+
+        <section class="drawer-section" aria-labelledby="drawer-features-title">
+          <h3 class="drawer-section__title" id="drawer-features-title">Features</h3>
+          <p class="drawer-section__hint">Switch on what you need. The timer stays front and center.</p>
+          ${featureSwitches}
+        </section>
+
+        <section class="drawer-section" aria-labelledby="drawer-look-title">
+          <h3 class="drawer-section__title" id="drawer-look-title">Appearance</h3>
+          <div class="drawer-row">
+            <span class="switch-row__name">Theme</span>
+            <div class="theme-picker" role="group" aria-label="Color theme">
+              ${themeButtons}
+            </div>
+          </div>
+          ${flatSwitch}
+        </section>
+
+        <section class="drawer-section" aria-labelledby="drawer-tools-title">
+          <h3 class="drawer-section__title" id="drawer-tools-title">Tools</h3>
+          <div class="drawer-tools">
+            <button type="button" class="icon-btn" id="btn-analytics" title="Analytics & 12-week heatmap">📊 Stats</button>
+            <button type="button" class="icon-btn" id="btn-settings" title="Timer settings">⚙ Settings</button>
+            <button type="button" class="icon-btn" id="btn-zen" title="Hide everything but the timer (Z)">✦ Zen mode</button>
+            <button type="button" class="icon-btn" id="btn-pip" title="Mini floating timer (P)">⧉ Mini timer</button>
+            <button type="button" class="icon-btn" id="btn-mute" title="Mute / unmute all audio (M)">🔊 Mute</button>
+            <button type="button" class="icon-btn" id="btn-shortcuts" title="Keyboard shortcuts (?)">⌨ Shortcuts</button>
+          </div>
+        </section>
+      </aside>
 
       <button type="button" class="zen-exit-btn" id="btn-exit-zen" hidden>
         ✕ Exit Zen (Z)
@@ -477,6 +557,11 @@ export class PomodoroApp {
     this.miniWidgetTimeEl = this.q('#mini-time');
     this.miniWidgetPhaseEl = this.q('#mini-phase');
     this.miniWidgetBtnEl = this.q<HTMLButtonElement>('#mini-toggle');
+    this.appShellEl = this.q('.app-shell');
+    this.sidePanelsEl = this.q('#side-panels');
+    this.menuBtnEl = this.q<HTMLButtonElement>('#btn-menu');
+    this.drawerEl = this.q('#side-drawer');
+    this.drawerBackdropEl = this.q('#drawer-backdrop');
 
     this.notifications = new NotificationService(this.q('#toast-stack'));
     this.particles = new ParticleBackdrop(this.q<HTMLCanvasElement>('#particle-canvas'));
@@ -500,6 +585,34 @@ export class PomodoroApp {
         if (!themeId) return;
         this.setTheme(themeId);
       });
+    });
+
+    // Side drawer: open/close
+    this.menuBtnEl.addEventListener('click', () => this.setDrawerOpen(!this.drawerOpen));
+    this.q('#btn-drawer-close').addEventListener('click', () => this.setDrawerOpen(false));
+    this.drawerBackdropEl.addEventListener('click', () => this.setDrawerOpen(false));
+
+    // Feature switches
+    this.root.querySelectorAll<HTMLInputElement>('[data-feature-toggle]').forEach((input) => {
+      input.addEventListener('change', () => {
+        const id = input.dataset['featureToggle'] as FeatureId | undefined;
+        if (!id) return;
+        this.data.ui.features[id] = input.checked;
+        this.persist();
+        this.applyFeatureLayout();
+        if (id === 'soundscape') {
+          // Off silences the ambient layers; on brings the saved mix back.
+          this.sound.syncMixerState(this.engineAudio(), input.checked);
+          this.syncAudioUi();
+        }
+      });
+    });
+
+    // Flat design switch
+    this.q<HTMLInputElement>('#toggle-flat').addEventListener('change', (e) => {
+      this.data.ui.flatDesign = (e.currentTarget as HTMLInputElement).checked;
+      this.persist();
+      this.applyFlatDesign();
     });
 
     // Phase tabs
@@ -583,7 +696,16 @@ export class PomodoroApp {
       this.persist();
       tickBtn.classList.toggle('is-on', this.data.settings.tickSound);
       tickBtn.textContent = `🕰 Tick: ${this.data.settings.tickSound ? 'ON' : 'OFF'}`;
-      this.sound.playUiClick();
+      if (!this.data.settings.tickSound) {
+        this.sound.playUiClick();
+        return;
+      }
+      // Play a sample right away so it's obvious the tick works.
+      this.sound.playTick();
+      const snap = this.engine.getSnapshot();
+      if (snap.phase !== 'focus' || snap.status !== 'running') {
+        this.notifications.toast('Tick on', 'You’ll hear it each second while a focus session is running.', 'info');
+      }
     });
 
     // Tasks
@@ -622,7 +744,7 @@ export class PomodoroApp {
       this.data.audio.masterVolume = val;
       this.data.audio.muted = false;
       this.persist();
-      this.sound.syncMixerState(this.data.audio, true);
+      this.sound.syncMixerState(this.engineAudio(), true);
       this.syncAudioUi();
     });
 
@@ -636,7 +758,7 @@ export class PomodoroApp {
           this.data.audio.muted = false;
         }
         this.persist();
-        this.sound.syncMixerState(this.data.audio, true);
+        this.sound.syncMixerState(this.engineAudio(), true);
         this.syncAudioUi();
       });
     });
@@ -647,7 +769,7 @@ export class PomodoroApp {
         if (!band) return;
         this.data.audio.binauralBand = band;
         this.persist();
-        this.sound.syncMixerState(this.data.audio, false);
+        this.sound.syncMixerState(this.engineAudio(), false);
         this.root.querySelectorAll('[data-band]').forEach((b) =>
           b.classList.toggle('is-active', b === btn),
         );
@@ -704,6 +826,10 @@ export class PomodoroApp {
           this.closeModal();
           return;
         }
+        if (this.drawerOpen) {
+          this.setDrawerOpen(false);
+          return;
+        }
         if (this.zenMode) {
           this.toggleZenMode(false);
           return;
@@ -754,17 +880,67 @@ export class PomodoroApp {
   private toggleMute(): void {
     this.data.audio.muted = !this.data.audio.muted;
     this.persist();
-    this.sound.syncMixerState(this.data.audio, true);
+    this.sound.syncMixerState(this.engineAudio(), true);
     this.syncAudioUi();
   }
 
   private toggleZenMode(force?: boolean): void {
+    this.setDrawerOpen(false);
     this.zenMode = force ?? !this.zenMode;
     document.body.classList.toggle('is-zen', this.zenMode);
     this.q('#btn-exit-zen').hidden = !this.zenMode;
   }
 
+  /** The mixer state the sound engine should play: ambient layers stay silent while Soundscape is off. */
+  private engineAudio(): AudioMixerState {
+    if (this.data.ui.features.soundscape) return this.data.audio;
+    return { ...this.data.audio, layers: { ...SILENT_LAYERS } };
+  }
+
+  /** Show only the panels the user switched on; with no side panels the timer sits alone, zen-style. */
+  private applyFeatureLayout(): void {
+    const features = this.data.ui.features;
+    this.root.querySelectorAll<HTMLElement>('[data-feature]').forEach((el) => {
+      const id = el.dataset['feature'] as FeatureId | undefined;
+      if (id) el.hidden = !features[id];
+    });
+    this.root.querySelectorAll<HTMLInputElement>('[data-feature-toggle]').forEach((input) => {
+      const id = input.dataset['featureToggle'] as FeatureId | undefined;
+      if (id) input.checked = features[id];
+    });
+    const hasSidePanels = features.tasks || features.soundscape || features.timeline;
+    this.sidePanelsEl.hidden = !hasSidePanels;
+    this.appShellEl.classList.toggle('is-minimal', !hasSidePanels);
+  }
+
+  private applyFlatDesign(): void {
+    const flat = this.data.ui.flatDesign;
+    document.documentElement.toggleAttribute('data-flat', flat);
+    this.q<HTMLInputElement>('#toggle-flat').checked = flat;
+    // Particles are decoration: stop the animation loop entirely in flat mode (saves CPU/battery).
+    if (flat) {
+      this.particles.stop();
+    } else {
+      this.particles.start();
+    }
+  }
+
+  private setDrawerOpen(open: boolean): void {
+    if (open === this.drawerOpen) return;
+    this.drawerOpen = open;
+    this.drawerEl.classList.toggle('is-open', open);
+    this.drawerBackdropEl.classList.toggle('is-open', open);
+    this.drawerEl.inert = !open;
+    this.menuBtnEl.setAttribute('aria-expanded', String(open));
+    if (open) {
+      this.q('#btn-drawer-close').focus();
+    } else if (this.drawerEl.contains(document.activeElement)) {
+      this.menuBtnEl.focus();
+    }
+  }
+
   private async togglePip(): Promise<void> {
+    this.setDrawerOpen(false);
     if (this.pipWindow && !this.pipWindow.closed) {
       this.pipWindow.close();
       this.pipWindow = null;
@@ -1190,12 +1366,8 @@ export class PomodoroApp {
       (l) => l.name,
     );
 
-    this.muteBtnEl.innerHTML = this.data.audio.muted
-      ? '<span>🔇</span>'
-      : activeNames.length > 0
-        ? '<span>🔊 Mix</span>'
-        : '<span>🔊</span>';
-    this.muteBtnEl.classList.toggle('is-active', !this.data.audio.muted && activeNames.length > 0);
+    this.muteBtnEl.textContent = this.data.audio.muted ? '🔇 Unmute' : '🔊 Mute';
+    this.muteBtnEl.classList.toggle('is-active', this.data.audio.muted);
 
     this.audioStatusEl.textContent = this.data.audio.muted
       ? 'Audio muted (press M to unmute)'
@@ -1219,6 +1391,7 @@ export class PomodoroApp {
   }
 
   private openModal(kind: 'analytics' | 'settings' | 'shortcuts' | null): void {
+    this.setDrawerOpen(false);
     this.activeModal = kind;
     if (!kind) {
       this.closeModal();
@@ -1329,7 +1502,9 @@ export class PomodoroApp {
           this.setTheme(this.data.theme);
           this.engine.updateSettings(this.data.settings);
           this.sound.setChimeVolume(this.data.settings.chimeVolume);
-          this.sound.syncMixerState(this.data.audio, false);
+          this.sound.syncMixerState(this.engineAudio(), false);
+          this.applyFeatureLayout();
+          this.applyFlatDesign();
           this.syncPresetButtons();
           this.syncAudioUi();
           this.renderTasks();

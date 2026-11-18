@@ -4,7 +4,7 @@ export type TimerStatus = 'idle' | 'running' | 'paused' | 'overtime';
 
 export type PresetId = 'classic' | 'deepWork' | 'sprint' | 'custom';
 
-export type ThemeId = 'cyber' | 'midnight' | 'matcha' | 'sunset';
+export type ThemeId = 'amoled' | 'cyber' | 'midnight' | 'matcha' | 'sunset';
 
 export type SoundLayerId = 'rain' | 'vinyl' | 'space' | 'brown' | 'binaural';
 
@@ -63,11 +63,20 @@ export interface AudioMixerState {
   binauralBand: BinauralBand;
 }
 
+/** Optional panels the user can switch on from the side drawer. */
+export type FeatureId = 'tasks' | 'soundscape' | 'timeline' | 'dailyGoal';
+
+export interface UiPreferences {
+  features: Record<FeatureId, boolean>;
+  flatDesign: boolean;
+}
+
 export interface AppData {
   version: number;
   theme: ThemeId;
   settings: TimerSettings;
   audio: AudioMixerState;
+  ui: UiPreferences;
   tasks: TaskItem[];
   activeTaskId: string | null;
   history: SessionRecord[];

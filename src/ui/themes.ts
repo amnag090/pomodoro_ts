@@ -12,6 +12,17 @@ export interface ThemeDefinition {
 }
 
 export const THEMES: Record<ThemeId, ThemeDefinition> = {
+  // Listed first so it leads the theme picker as the default.
+  amoled: {
+    id: 'amoled',
+    label: 'AMOLED Black',
+    swatch: '#000000',
+    focusColor: '#22d3ee',
+    breakColor: '#4ade80',
+    longBreakColor: '#c084fc',
+    particleColor: '34, 211, 238',
+    bgMeta: '#000000',
+  },
   cyber: {
     id: 'cyber',
     label: 'Cyber Neon',
